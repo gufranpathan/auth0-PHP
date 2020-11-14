@@ -1,24 +1,42 @@
 ## Contributing
 
-We provide and maintain SDKs for the benefit of our developer community. Feedback, detailed bug reports, and focused PRs are appreciated. Thank you in advance!
+We provide and maintain SDKs for the benefit of our developer community. Feedback, detailed bug reports, and focused PRs are always appreciated. Thank you in advance!
 
 When contributing to this SDK, please:
 
-- Maintain the minimum PHP version (found under `require.php` in `composer.json`).
+- Maintain the minimum PHP version (found under `require.php` in `composer.json` for the branch).
 - Code to the [PSR-2 standard](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md).
-- Write tests and run them with `composer test`.
+- Run `composer pre-commit` for the whole project before submitting your PR for review. You can add this to a pre-commit hook with the following:
+
+```bash
+echo '#!/bin/sh' > .git/hooks/pre-commit && echo 'composer pre-commit' >> .git/hooks/pre-commit
+```
+
+- Run `composer phpcs` for the changed PHP files before submitting your PR for review (optional). 
 - Keep PRs focused and change the minimum number of lines to achieve your goal.
 
-To run tests on the SDK, you'll need to create a `.env` file in the root of this package with the following entries:
+### Running unit tests
+
+Prior to making a PR, ensure that the unit tests pass:
+
+`composer test-unit`
+
+### Running integration tests
+
+The integration tests require a tenant and Auth0 Application configured with the following:
+
+- The Application must be of type Machine-to-Machine and have the Management API authorized
+- The tenant must have the default Database connection named "Username-Password-Authentication", and it must not have the "Requires Username" enabled
+- The tenant must have at least two rules (they can be empty rules)
+
+You will also need to create a `.env` file in the root of this package with the following entries:
 
 - `DOMAIN` - Auth0 domain for your test tenant
-- `APP_CLIENT_ID` - Client ID for a Regular Web Application within your test tenant
-- `APP_CLIENT_SECRET` - Client Secret for a Regular Web Application within your test tenant
-- `NIC_ID` - Client ID for a test Non-Interactive Client Application
-- `NIC_SECRET` - Client Secret for a test Non-Interactive Client Application
-- `GLOBAL_CLIENT_ID` - Client ID for your tenant (found in Tenant > Settings > Advanced)
-- `GLOBAL_CLIENT_SECRET` - Client Secret for your tenant (found in Tenant > Settings > Advanced)
+- `APP_CLIENT_ID` - Client ID for a Machine-to-Machine Application within your test tenant
+- `APP_CLIENT_SECRET` - Client Secret for a Machine-to-Machine Application within your test tenant
+ 
+> This file is automatically excluded from Git with the `.gitignore` for this repo.
 
-This file is automatically excluded from Git with the `.gitignore` for this repo. 
+To run the integration tests:
 
-We're working on test coverage and quality but please note that newer tenants might see errors (typically `404`) for endpoints that are no longer available. Another common error is a `429` for too many requests. 
+`composer test-integration`

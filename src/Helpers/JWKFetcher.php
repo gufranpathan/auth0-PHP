@@ -1,13 +1,14 @@
 <?php
+declare(strict_types=1);
 
 namespace Auth0\SDK\Helpers;
 
 use Auth0\SDK\API\Helpers\RequestBuilder;
-use Auth0\SDK\Helpers\Cache\CacheHandler;
 use Auth0\SDK\Helpers\Cache\NoCacheHandler;
-
-use GuzzleHttp\Exception\RequestException;
+use Auth0\SDK\Exception\CoreException;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Class JWKFetcher.
@@ -16,13 +17,35 @@ use GuzzleHttp\Exception\ClientException;
  */
 class JWKFetcher
 {
+    /**
+     * Default length of cache persistence. Defaults to 10 minutes.
+     *
+     * @see https://www.php-fig.org/psr/psr-16/#12-definitions
+     */
+    const CACHE_TTL = 600;
+
+    /**
+     * How long should the cache persist? Defaults to value of CACHE_TTL.
+     * We strongly encouraged you leave the default value.
+     *
+     * @see https://www.php-fig.org/psr/psr-16/#12-definitions
+     */
+    private $ttl = self::CACHE_TTL;
 
     /**
      * Cache handler or null for no caching.
      *
-     * @var CacheHandler|null
+     * @var CacheInterface|null
      */
     private $cache;
+
+    /**
+     * Cache for unique cache ids.
+     * Key for each entry is the url to the JWK. Value is cache id.
+     *
+     * @var array
+     */
+    private $cachedEntryIds = [];
 
     /**
      * Options for the Guzzle HTTP client.
@@ -34,10 +57,11 @@ class JWKFetcher
     /**
      * JWKFetcher constructor.
      *
-     * @param CacheHandler|null $cache         Cache handler or null for no caching.
-     * @param array             $guzzleOptions Options for the Guzzle HTTP client.
+     * @param CacheInterface|null $cache         Cache handler or null for no caching.
+     * @param array               $guzzleOptions Guzzle HTTP options.
+     * @param options             $options       Class options to apply at initializion.
      */
-    public function __construct(CacheHandler $cache = null, array $guzzleOptions = [])
+    public function __construct(CacheInterface $cache = null, array $guzzleOptions = [], array $options = [])
     {
         if ($cache === null) {
             $cache = new NoCacheHandler();
@@ -45,6 +69,10 @@ class JWKFetcher
 
         $this->cache         = $cache;
         $this->guzzleOptions = $guzzleOptions;
+
+        if (!empty($options['ttl'])) {
+            $this->setTtl($options['ttl']);
+        }
     }
 
     /**
@@ -54,7 +82,7 @@ class JWKFetcher
      *
      * @return string
      */
-    protected function convertCertToPem($cert)
+    protected function convertCertToPem(string $cert) : string
     {
         $output  = '-----BEGIN CERTIFICATE-----'.PHP_EOL;
         $output .= chunk_split($cert, 64, PHP_EOL);
@@ -63,17 +91,44 @@ class JWKFetcher
     }
 
     /**
+     * Get a specific kid from a JWKS.
+     *
+     * @param string      $kid     Key ID to get.
+     * @param string|null $jwksUri JWKS URI to use, or fallback on class-level one.
+     *
+     * @return mixed|null
+     */
+    public function getKey(string $kid, string $jwksUri = null)
+    {
+        $keys = $this->getKeys( $jwksUri );
+
+        if (! empty( $keys ) && empty( $keys[$kid] )) {
+            $keys = $this->getKeys( $jwksUri, false );
+        }
+
+        return $keys[$kid] ?? null;
+    }
+
+    /**
      * Gets an array of keys from the JWKS as kid => x5c.
      *
-     * @param string $jwks_url Full URL to the JWKS.
+     * @param string  $jwks_url  Full URL to the JWKS.
+     * @param boolean $use_cache Set to false to skip cache check; default true to use caching.
      *
      * @return array
      */
-    public function getKeys($jwks_url)
+    public function getKeys(string $jwks_url = null, bool $use_cache = true) : array
     {
-        $keys = $this->cache->get($jwks_url);
-        if (is_array($keys) && ! empty($keys)) {
-            return $keys;
+        $jwks_url = $jwks_url ?? $this->guzzleOptions['base_uri'] ?? '';
+
+        if (empty( $jwks_url )) {
+            return [];
+        }
+
+        $cached_value = $use_cache ? $this->getCacheEntry($jwks_url) : null;
+
+        if (! empty($cached_value) && is_array($cached_value)) {
+            return $cached_value;
         }
 
         $jwks = $this->requestJwks($jwks_url);
@@ -91,39 +146,8 @@ class JWKFetcher
             $keys[$key['kid']] = $this->convertCertToPem( $key['x5c'][0] );
         }
 
-        $this->cache->set($jwks_url, $keys);
+        $this->setCacheEntry($jwks_url, $keys);
         return $keys;
-    }
-
-    /**
-     * Fetch x509 cert for RS256 token decoding.
-     *
-     * @deprecated 5.6.0, use $this->getKeys().
-     *
-     * @param string      $jwks_url URL to the JWKS.
-     * @param string|null $kid      Key ID to use; returns first JWK if $kid is null or empty.
-     *
-     * @return string|null - Null if an x5c key could not be found for a key ID or if the JWKS is empty/invalid.
-     */
-    public function requestJwkX5c($jwks_url, $kid = null)
-    {
-        $cache_key = $jwks_url.'|'.$kid;
-
-        $x5c = $this->cache->get($cache_key);
-        if (! is_null($x5c)) {
-            return $x5c;
-        }
-
-        $jwks = $this->requestJwks($jwks_url);
-        $jwk  = $this->findJwk($jwks, $kid);
-
-        if ($this->subArrayHasEmptyFirstItem($jwk, 'x5c')) {
-            return null;
-        }
-
-        $x5c = $this->convertCertToPem($jwk['x5c'][0]);
-        $this->cache->set($cache_key, $x5c);
-        return $x5c;
     }
 
     /**
@@ -131,112 +155,127 @@ class JWKFetcher
      *
      * @param string $jwks_url URL to the JWKS.
      *
-     * @return mixed|string
+     * @return array
      *
      * @throws RequestException If $jwks_url is empty or malformed.
      * @throws ClientException  If the JWKS cannot be retrieved.
-     *
-     * @codeCoverageIgnore
      */
-    protected function requestJwks($jwks_url)
+    protected function requestJwks(string $jwks_url) : array
     {
+        $options = array_merge( $this->guzzleOptions, [ 'base_uri' => $jwks_url ] );
+
         $request = new RequestBuilder([
-            'domain' => $jwks_url,
             'method' => 'GET',
-            'guzzleOptions' => $this->guzzleOptions
+            'guzzleOptions' => $options,
         ]);
+
         return $request->call();
     }
 
     /**
-     * Get a JWK from a JWKS using a key ID, if provided.
+     * Set how long to cache JWKs in seconds.
+     * We strongly encouraged you leave the default value.
      *
-     * @deprecated 5.6.0, use $this->getKeys().
+     * @param string  $ttlSeconds  Number of seconds to keep a JWK in memory.
      *
-     * @param array       $jwks JWKS to parse.
-     * @param null|string $kid  Key ID to return; returns first JWK if $kid is null or empty.
+     * @return $this
      *
-     * @return array|null Null if the keys array is empty or if the key ID is not found.
-     *
-     * @codeCoverageIgnore
+     * @throws CoreException  If $ttlSeconds is less than 60.
      */
-    private function findJwk(array $jwks, $kid = null)
+    public function setTtl(int $ttlSeconds)
     {
-        if ($this->subArrayHasEmptyFirstItem($jwks, 'keys')) {
-            return null;
+        if ($ttlSeconds < 60) {
+            throw new CoreException('TTL cannot be less than 60 seconds.');
         }
 
-        if (! $kid) {
-            return $jwks['keys'][0];
+        $this->ttl = $ttlSeconds;
+        return $this;
+    }
+
+    /**
+     * Returns how long we are caching JWKs in seconds.
+     *
+     * @return integer
+     */
+    public function getTtl()
+    {
+        return $this->ttl;
+    }
+
+    /**
+     * Generate a cache id to use for a URL.
+     *
+     * @param string  $jwks_url  Full URL to the JWKS.
+     *
+     * @return string
+     */
+    public function getCacheKey(string $jwksUri)
+    {
+        if (isset($this->cachedEntryIds[$jwksUri])) {
+            return $this->cachedEntryIds[$jwksUri];
         }
 
-        foreach ($jwks['keys'] as $key) {
-            if (isset($key['kid']) && $key['kid'] === $kid) {
-                return $key;
-            }
+        $cacheKey = md5($jwksUri);
+
+        $this->cachedEntryIds[$jwksUri] = $cacheKey;
+        return $cacheKey;
+    }
+
+    /**
+     * Get a specific JWK from the cache by it's URL.
+     *
+     * @param string  $jwks_url  Full URL to the JWKS.
+     *
+     * @return null|array
+     */
+    public function getCacheEntry(string $jwksUri)
+    {
+        $cache_key    = $this->getCacheKey($jwksUri);
+        $cached_value = $this->cache->get($cache_key);
+
+        if (! empty($cached_value) && is_array($cached_value)) {
+            return $cached_value;
         }
 
         return null;
     }
 
+   /**
+     * Add or overwrite a specific JWK from the cache.
+     *
+     * @param string  $jwks_url  Full URL to the JWKS.
+     * @param array   $keys      An array representing the JWKS.
+     *
+     * @return $this
+     */
+    public function setCacheEntry(string $jwksUri, array $keys)
+    {
+        $cache_key = $this->getCacheKey($jwksUri);
+
+        $this->cache->set($cache_key, $keys, $this->ttl);
+
+        return $this;
+    }
+
     /**
-     * Check if an array within an array has a non-empty first item.
+     * Remove a specific JWK from the cache by it's URL.
      *
-     * @deprecated 5.6.0, not used.
-     *
-     * @param array|null $array Main array to check.
-     * @param string     $key   Key pointing to a sub-array.
+     * @param string  $jwks_url  Full URL to the JWKS.
      *
      * @return boolean
-     *
-     * @codeCoverageIgnore
      */
-    private function subArrayHasEmptyFirstItem($array, $key)
+    public function removeCacheEntry(string $jwksUri)
     {
-        return empty($array) || ! is_array($array[$key]) || empty($array[$key][0]);
+        return $this->cache->delete($this->getCacheKey($jwksUri));
     }
 
-    /*
-     * Deprecated
-     */
-
-    // phpcs:disable
     /**
-     * Appends the default JWKS path to a token issuer to return all keys from a JWKS.
+     * Clear the JWK cache.
      *
-     * @deprecated 5.4.0, use requestJwkX5c instead.
-     *
-     * @param string $iss
-     *
-     * @return array|mixed|null
-     *
-     * @throws \Exception
-     *
-     * @codeCoverageIgnore
+     * @return boolean
      */
-    public function fetchKeys($iss)
+    public function clearCache()
     {
-        $url = "{$iss}.well-known/jwks.json";
-
-        if (($secret = $this->cache->get($url)) === null) {
-            $secret = [];
-
-            $request = new RequestBuilder([
-                'domain' => $iss,
-                'basePath' => '.well-known/jwks.json',
-                'method' => 'GET',
-                'guzzleOptions' => $this->guzzleOptions
-            ]);
-            $jwks    = $request->call();
-
-            foreach ($jwks['keys'] as $key) {
-                $secret[$key['kid']] = $this->convertCertToPem($key['x5c'][0]);
-            }
-
-            $this->cache->set($url, $secret);
-        }
-
-        return $secret;
+        return $this->cache->clear();
     }
-    // phpcs:enable
 }
