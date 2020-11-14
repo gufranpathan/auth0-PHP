@@ -1,5 +1,5 @@
 <?php
-namespace Auth0\Tests\traits;
+namespace Auth0\Tests\Traits;
 
 trait ErrorHelpers
 {

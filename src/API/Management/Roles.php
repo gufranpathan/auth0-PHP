@@ -150,7 +150,8 @@ class Roles extends GenericResource
         $params = $this->normalizeIncludeTotals( $params );
 
         return $this->apiClient->method('get')
-            ->addPath('roles', $role_id, 'permissions')
+            ->addPath('roles', $role_id)
+            ->addPath('permissions')
             ->withDictParams($params)
             ->call();
     }
@@ -178,7 +179,8 @@ class Roles extends GenericResource
         $data = [ 'permissions' => $permissions ];
 
         return $this->apiClient->method('post')
-            ->addPath('roles', $role_id, 'permissions')
+            ->addPath('roles', $role_id)
+            ->addPath('permissions')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -206,7 +208,8 @@ class Roles extends GenericResource
         $data = [ 'permissions' => $permissions ];
 
         return $this->apiClient->method('delete')
-            ->addPath('roles', $role_id, 'permissions')
+            ->addPath('roles', $role_id)
+            ->addPath('permissions')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -235,7 +238,8 @@ class Roles extends GenericResource
         $params = $this->normalizeIncludeTotals( $params );
 
         return $this->apiClient->method('get')
-            ->addPath('roles', $role_id, 'users')
+            ->addPath('roles', $role_id)
+            ->addPath('users')
             ->withDictParams($params)
             ->call();
     }
@@ -266,7 +270,8 @@ class Roles extends GenericResource
         $data = [ 'users' => array_unique( $users ) ];
 
         return $this->apiClient->method('post')
-            ->addPath('roles', $role_id, 'users')
+            ->addPath('roles', $role_id)
+            ->addPath('users')
             ->withBody(json_encode($data))
             ->call();
     }

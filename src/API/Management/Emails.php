@@ -13,7 +13,8 @@ class Emails extends GenericResource
     public function getEmailProvider($fields = null, $include_fields = null)
     {
         $request = $this->apiClient->method('get')
-        ->addPath('emails', 'provider');
+        ->addPath('emails')
+        ->addPath('provider');
 
         if ($fields !== null) {
             if (is_array($fields)) {
@@ -38,7 +39,8 @@ class Emails extends GenericResource
     public function configureEmailProvider($data)
     {
         return $this->apiClient->method('post')
-        ->addPath('emails', 'provider')
+        ->addPath('emails')
+        ->addPath('provider')
         ->withBody(json_encode($data))
         ->call();
     }
@@ -51,7 +53,8 @@ class Emails extends GenericResource
     public function updateEmailProvider($data)
     {
         return $this->apiClient->method('patch')
-        ->addPath('emails', 'provider')
+        ->addPath('emails')
+        ->addPath('provider')
         ->withBody(json_encode($data))
         ->call();
     }
@@ -63,7 +66,8 @@ class Emails extends GenericResource
     public function deleteEmailProvider()
     {
         return $this->apiClient->method('delete')
-        ->addPath('emails', 'provider')
+        ->addPath('emails')
+        ->addPath('provider')
         ->call();
     }
 }

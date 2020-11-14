@@ -187,7 +187,8 @@ class Users extends GenericResource
     public function linkAccount($user_id, array $data)
     {
         return $this->apiClient->method('post')
-            ->addPath('users', $user_id, 'identities')
+            ->addPath('users', $user_id)
+            ->addPath('identities')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -209,7 +210,9 @@ class Users extends GenericResource
     public function unlinkAccount($user_id, $provider, $identity_id)
     {
         return $this->apiClient->method('delete')
-            ->addPath('users', $user_id, 'identities', $provider, $identity_id)
+            ->addPath('users', $user_id)
+            ->addPath('identities', $provider)
+            ->addPath($identity_id)
             ->call();
     }
 
@@ -230,7 +233,8 @@ class Users extends GenericResource
     public function deleteMultifactorProvider($user_id, $mfa_provider)
     {
         return $this->apiClient->method('delete')
-            ->addPath('users', $user_id, 'multifactor', $mfa_provider)
+            ->addPath('users', $user_id)
+            ->addPath('multifactor', $mfa_provider)
             ->call();
     }
 
@@ -258,7 +262,8 @@ class Users extends GenericResource
         $params = $this->normalizeIncludeTotals( $params );
 
         return $this->apiClient->method('get')
-            ->addPath('users', $user_id, 'roles')
+            ->addPath('users', $user_id)
+            ->addPath('roles')
             ->withDictParams($params)
             ->call();
     }
@@ -289,7 +294,8 @@ class Users extends GenericResource
         $data = [ 'roles' => $roles ];
 
         return $this->apiClient->method('delete')
-            ->addPath('users', $user_id, 'roles')
+            ->addPath('users', $user_id)
+            ->addPath('roles')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -322,7 +328,8 @@ class Users extends GenericResource
         $data = [ 'roles' => $roles ];
 
         return $this->apiClient->method('post')
-            ->addPath('users', $user_id, 'roles')
+            ->addPath('users', $user_id)
+            ->addPath('roles')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -345,7 +352,8 @@ class Users extends GenericResource
         $this->checkEmptyOrInvalidString($user_id, 'user_id');
 
         return $this->apiClient->method('get')
-            ->addPath('users', $user_id, 'enrollments')
+            ->addPath('users', $user_id)
+            ->addPath('enrollments')
             ->call();
     }
 
@@ -371,7 +379,8 @@ class Users extends GenericResource
         $params = $this->normalizeIncludeTotals( $params );
 
         return $this->apiClient->method('get')
-            ->addPath('users', $user_id, 'permissions')
+            ->addPath('users', $user_id)
+            ->addPath('permissions')
             ->withDictParams($params)
             ->call();
     }
@@ -399,7 +408,8 @@ class Users extends GenericResource
         $data = [ 'permissions' => $permissions ];
 
         return $this->apiClient->method('delete')
-            ->addPath('users', $user_id, 'permissions')
+            ->addPath('users', $user_id)
+            ->addPath('permissions')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -427,7 +437,8 @@ class Users extends GenericResource
         $data = [ 'permissions' => $permissions ];
 
         return $this->apiClient->method('post')
-            ->addPath('users', $user_id, 'permissions')
+            ->addPath('users', $user_id)
+            ->addPath('permissions')
             ->withBody(json_encode($data))
             ->call();
     }
@@ -454,7 +465,8 @@ class Users extends GenericResource
         $params = $this->normalizeIncludeTotals( $params );
 
         return $this->apiClient->method('get')
-            ->addPath('users', $user_id, 'logs')
+            ->addPath('users', $user_id)
+            ->addPath('logs')
             ->withDictParams($params)
             ->call();
     }
@@ -477,7 +489,8 @@ class Users extends GenericResource
         $this->checkEmptyOrInvalidString($user_id, 'user_id');
 
         return $this->apiClient->method('post')
-            ->addPath('users', $user_id, 'recovery-code-regeneration')
+            ->addPath('users', $user_id)
+            ->addPath('recovery-code-regeneration')
             ->call();
     }
 
@@ -499,7 +512,53 @@ class Users extends GenericResource
         $this->checkEmptyOrInvalidString($user_id, 'user_id');
 
         return $this->apiClient->method('post')
-            ->addPath('users', $user_id, 'multifactor', 'actions', 'invalidate-remember-browser')
+            ->addPath('users', $user_id)
+            ->addPath('multifactor/actions/invalidate-remember-browser')
             ->call();
     }
+
+    /*
+     * Deprecated
+     */
+
+    // phpcs:disable
+
+    /**
+     * Wrapper for self::getAll().
+     *
+     * @deprecated 5.4.0, use $this->getAll instead.
+     *
+     * @param array $params Search parameters to send.
+     *
+     * @return mixed|string
+     *
+     * @throws \Exception Thrown by the HTTP client when there is a problem with the API call.
+     *
+     * @codeCoverageIgnores - Deprecated
+     */
+    public function search(array $params = [])
+    {
+        return $this->getAll($params);
+    }
+
+    /**
+     * Unlink device.
+     *
+     * @deprecated 5.4.0, endpoint does not exist.
+     *
+     * @param string $user_id   User ID.
+     * @param string $device_id Device ID.
+     *
+     * @return void
+     *
+     * @throws \Exception Thrown by the HTTP client when there is a problem with the API call.
+     *
+     * @codeCoverageIgnores - Deprecated
+     */
+    public function unlinkDevice($user_id, $device_id)
+    {
+        throw new \Exception('Endpoint /api/v2/users/{user_id}/devices/{device_id} does not exist.');
+    }
+
+    // phpcs:enable
 }

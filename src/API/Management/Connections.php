@@ -137,7 +137,8 @@ class Connections extends GenericResource
     public function deleteUser($id, $email)
     {
         return $this->apiClient->method('delete')
-            ->addPath('connections', $id, 'users')
+            ->addPath('connections', $id)
+            ->addPath('users')
             ->withParam('email', $email)
             ->call();
     }

@@ -1,5 +1,4 @@
 <?php
-declare(strict_types=1);
 
 namespace Auth0\SDK\API\Helpers;
 
@@ -27,7 +26,7 @@ class InformationHeaders
      *
      * @return void
      */
-    public function setPackage(string $name, $version) : void
+    public function setPackage($name, $version)
     {
         $this->data['name']    = $name;
         $this->data['version'] = $version;
@@ -38,7 +37,7 @@ class InformationHeaders
      *
      * @return void
      */
-    public function setCorePackage() : void
+    public function setCorePackage()
     {
         $this->setPackage('auth0-php', ApiClient::API_VERSION);
         $this->setEnvProperty('php', phpversion());
@@ -52,7 +51,7 @@ class InformationHeaders
      *
      * @return void
      */
-    public function setEnvProperty(string $name, $version) : void
+    public function setEnvProperty($name, $version)
     {
         if (! isset($this->data['env']) || ! is_array($this->data['env'])) {
             $this->data['env'] = [];
@@ -68,7 +67,7 @@ class InformationHeaders
      *
      * @return void
      */
-    public function setEnvironmentData(array $data) : void
+    public function setEnvironmentData(array $data)
     {
         $this->data['env'] = $data;
     }
@@ -78,7 +77,7 @@ class InformationHeaders
      *
      * @return array
      */
-    public function get() : array
+    public function get()
     {
         return $this->data;
     }
@@ -88,7 +87,7 @@ class InformationHeaders
      *
      * @return string
      */
-    public function build() : string
+    public function build()
     {
         return base64_encode(json_encode($this->get()));
     }
@@ -101,7 +100,7 @@ class InformationHeaders
      *
      * @return InformationHeaders
      */
-    public static function Extend(InformationHeaders $headers) : InformationHeaders
+    public static function Extend(InformationHeaders $headers)
     {
         $new_headers = new InformationHeaders;
         $old_headers = $headers->get();
@@ -114,4 +113,56 @@ class InformationHeaders
 
         return $new_headers;
     }
+
+    /*
+     * Deprecated
+     */
+
+    // phpcs:disable
+
+    /**
+     * @deprecated 5.4.0, use $this->setEnvProperty() instead.
+     *
+     * @param string $name    Dependency or platform name.
+     * @param string $version Dependency or platform version.
+     *
+     * @return void
+     *
+     * @codeCoverageIgnore - Deprecated
+     */
+    public function setEnvironment($name, $version)
+    {
+        $this->setEnvProperty($name, $version);
+    }
+
+    /**
+     * @deprecated 5.4.0, use $this->setEnvProperty() instead.
+     *
+     * @param string $name    Dependency name.
+     * @param string $version Dependency version.
+     *
+     * @return void
+     *
+     * @codeCoverageIgnore - Deprecated
+     */
+    public function setDependency($name, $version)
+    {
+        $this->setEnvProperty($name, $version);
+    }
+
+    /**
+     * @deprecated 5.4.0, use $this->setEnvProperty() instead.
+     *
+     * @param array $data Dependency data to store.
+     *
+     * @return void
+     *
+     * @codeCoverageIgnore - Deprecated
+     */
+    public function setDependencyData(array $data)
+    {
+        $this->data['dependencies'] = $data;
+    }
+
+    // phpcs:enable
 }

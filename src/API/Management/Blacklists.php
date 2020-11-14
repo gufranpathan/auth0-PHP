@@ -12,7 +12,8 @@ class Blacklists extends GenericResource
     public function getAll($aud)
     {
         return $this->apiClient->method('get')
-            ->addPath('blacklists', 'tokens')
+            ->addPath('blacklists')
+            ->addPath('tokens')
             ->withParam('aud', $aud)
             ->call();
     }
@@ -26,7 +27,8 @@ class Blacklists extends GenericResource
     public function blacklist($aud, $jti)
     {
         return $this->apiClient->method('post')
-            ->addPath('blacklists', 'tokens')
+            ->addPath('blacklists')
+            ->addPath('tokens')
             ->withBody(json_encode([
                 'aud' => $aud,
                 'jti' => $jti

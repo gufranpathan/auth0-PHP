@@ -1,41 +1,40 @@
 <?php
-declare(strict_types=1);
-
 namespace Auth0\SDK\Store;
 
-/**
- * Interface StoreInterface
+/*
+ * This file is part of Auth0-PHP package.
  *
- * @package Auth0\SDK\Store
+ * (c) Auth0
+ *
+ * For the full copyright and license information, please view the LICENSE file
+ * that was distributed with this source code.
+ *
+ * This interface must be implemented by stores
+ *
+ * @author Auth0
  */
 interface StoreInterface
 {
     /**
      * Set a value on the store
      *
-     * @param string $key   Key to set.
-     * @param mixed  $value Value to set.
-     *
-     * @return void
+     * @param string $key
+     * @param mixed  $value
      */
-    public function set(string $key, $value);
-
+    public function set($key, $value);
     /**
-     * Get a value from the store by a given key.
+     * Get a value from the store by a given key
      *
-     * @param string      $key     Key to get.
-     * @param null|string $default Return value if key not found.
-     *
+     * @param  string     $key
+     * @param  mixed|null $default
      * @return mixed
      */
-    public function get(string $key, $default = null);
-
+    public function get($key, $default = null);
     /**
      * Remove a value from the store
      *
-     * @param string $key Key to delete.
-     *
-     * @return void
+     * @param  string $key
+     * @return mixed
      */
-    public function delete(string $key);
+    public function delete($key);
 }
